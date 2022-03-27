@@ -319,6 +319,9 @@ int main() {
     Model sheepModel("resources/objects/sheep/sheep01.obj");
     sheepModel.SetShaderTextureNamePrefix("material.");
 
+    Model humanModel("resources/objects/human/human.obj");
+    humanModel.SetShaderTextureNamePrefix("material.");
+
     // coords for models
     // -----------------
     vector <glm::vec3> stalls =
@@ -431,7 +434,7 @@ int main() {
 
     pointLight.constant = 1.0f;
     pointLight.linear = 0.09f;
-    pointLight.quadratic = 0.032f;
+    pointLight.quadratic = 0.012f;
 
 
 
@@ -519,6 +522,14 @@ int main() {
             ourShader.setMat4("model", model);
             hutModel.Draw(ourShader);
         }
+
+        // human model
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(1.0f, 0.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        model = glm::scale(model, glm::vec3(0.009f));
+        ourShader.setMat4("model", model);
+        humanModel.Draw(ourShader);
 
         // well model
         model = glm::mat4(1.0f);
