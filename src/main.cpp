@@ -31,7 +31,7 @@ const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 bool cursorEnabled = false;
 bool blinnPhong = true;
-bool blinnPhongKeyPressed = false;
+bool gateClosed = false;
 
 // camera
 Camera camera(glm::vec3(0.0f, 3.0f, 0.0f));
@@ -42,21 +42,6 @@ bool firstMouse = true;
 // timing
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
-
-struct PointLight {
-    glm::vec3 position;
-    glm::vec3 ambient;
-    glm::vec3 diffuse;
-    glm::vec3 specular;
-
-    float constant;
-    float linear;
-    float quadratic;
-};
-
-PointLight pointLight;
-glm::vec3 backpackPosition = glm::vec3(0.0f);
-float backpackScale = 1.0f;
 
 int main() {
     // glfw: initialize and configure
@@ -436,17 +421,6 @@ int main() {
                     glm::vec3(5.5f, 0.0f, -5.0f),
                     glm::vec3(5.5f, 0.0f, -7.0f)
             };
-    // lights configuration
-    pointLight.position = glm::vec3(4.0f, 4.0, 0.0);
-    pointLight.ambient = glm::vec3(0.1, 0.1, 0.1);
-    pointLight.diffuse = glm::vec3(0.6, 0.6, 0.6);
-    pointLight.specular = glm::vec3(1.0, 1.0, 1.0);
-
-    pointLight.constant = 1.0f;
-    pointLight.linear = 0.09f;
-    pointLight.quadratic = 0.012f;
-
-
 
     // draw in wireframe
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -694,7 +668,7 @@ int main() {
             fenceModel.Draw(ourShader);
         }
 
-        for(unsigned int i = 0; i < fencesRotated.size(); i ++){
+        for(unsigned int i = 0; i < fencesRotated.size(); i ++) {
             model = glm::mat4(1.0f);
             model = glm::translate(model, fencesRotated[i]);
             model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -703,25 +677,38 @@ int main() {
             fenceModel.Draw(ourShader);
         }
 
-        // TODO: add gate closing/opening on some key
-        // closed coords: (swapped)
-        // glm::vec3(7.12f, 0.0f, -0.4f),
-        // glm::vec3(7.12f, 0.0f, 0.95f),
-        // closed angle: 90
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(6.55f, 0.0f, 2.05f));
-        model = glm::rotate(model, glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        model = glm::scale(model, glm::vec3(0.8f));
-        ourShader.setMat4("model", model);
-        fenceModel.Draw(ourShader);
+        if(!gateClosed)
+        {
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, glm::vec3(6.55f, 0.0f, 2.05f));
+            model = glm::rotate(model, glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            model = glm::scale(model, glm::vec3(0.8f));
+            ourShader.setMat4("model", model);
+            fenceModel.Draw(ourShader);
 
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(6.65f, 0.0f, -1.7f));
-        model = glm::rotate(model, glm::radians(-45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        model = glm::scale(model, glm::vec3(0.8f));
-        ourShader.setMat4("model", model);
-        fenceModel.Draw(ourShader);
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, glm::vec3(6.65f, 0.0f, -1.7f));
+            model = glm::rotate(model, glm::radians(-45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            model = glm::scale(model, glm::vec3(0.8f));
+            ourShader.setMat4("model", model);
+            fenceModel.Draw(ourShader);
+        }
+        else
+        {
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, glm::vec3(7.12f, 0.0f, 0.95f));
+            model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            model = glm::scale(model, glm::vec3(0.8f));
+            ourShader.setMat4("model", model);
+            fenceModel.Draw(ourShader);
 
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, glm::vec3(7.12f, 0.0f, -0.4f));
+            model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            model = glm::scale(model, glm::vec3(0.8f));
+            ourShader.setMat4("model", model);
+            fenceModel.Draw(ourShader);
+        }
         // sheep model
         for(unsigned int i = 0; i < sheepsInside.size(); i++){
             model = glm::mat4(1.0f);
@@ -838,20 +825,6 @@ void processInput(GLFWwindow *window) {
         camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
-
-    if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS && !blinnPhongKeyPressed)
-    {
-        blinnPhong = !blinnPhong;
-        blinnPhongKeyPressed = true;
-        if (blinnPhong)
-            cout << "Lights mode changed! Currently using: Blinn-Phong!\n";
-        else
-            cout << "Lights mode changed! Currently using: Phong!\n";
-    }
-    if (glfwGetKey(window, GLFW_KEY_B) == GLFW_RELEASE)
-    {
-        blinnPhongKeyPressed = false;
-    }
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -889,6 +862,10 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_F1 && action == GLFW_PRESS)
         cursorEnabled = !cursorEnabled;
+    if (key == GLFW_KEY_G && action == GLFW_PRESS)
+        gateClosed = !gateClosed;
+    if (key == GLFW_KEY_M && action == GLFW_PRESS)
+        blinnPhong = !blinnPhong;
 }
 
 unsigned int loadCubemap(vector<std::string> faces)
