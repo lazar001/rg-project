@@ -34,7 +34,7 @@ const unsigned int SCR_HEIGHT = 600;
 bool cursorEnabled = false;
 bool blinnPhong = true;
 bool gateClosed = false;
-float heightScale = 0.1f;
+float heightScale = 0.0305f;
 
 // camera
 Camera camera(glm::vec3(0.0f, 3.0f, 0.0f));
@@ -227,9 +227,9 @@ int main() {
     unsigned int floorDiffuseMap = loadTexture(FileSystem::getPath("resources/textures/grass/diffuse.png").c_str());
     unsigned int floorSpecularMap = loadTexture(FileSystem::getPath("resources/textures/grass/specular.png").c_str());
 
-    unsigned int pDiffuseMap = loadTexture(FileSystem::getPath("resources/textures/grassNormal&Parallax/grassDiffuse.jpg").c_str());
-    unsigned int pNormalMap = loadTexture(FileSystem::getPath("resources/textures/grassNormal&Parallax/grassHeight.png").c_str());
-    unsigned int pHeightMap = loadTexture(FileSystem::getPath("resources/textures/grassNormal&Parallax/grassNormal.jpg").c_str());
+    unsigned int pDiffuseMap = loadTexture(FileSystem::getPath("resources/textures/grassD.jpg").c_str());
+    unsigned int pNormalMap = loadTexture(FileSystem::getPath("resources/textures/grassN.jpg").c_str());
+    unsigned int pHeightMap = loadTexture(FileSystem::getPath("resources/textures/grassH.jpg").c_str());
 
     ourShader.use();
     ourShader.setInt("material.diffuse", 0);
@@ -577,7 +577,7 @@ int main() {
         humanModel.Draw(ourShader);
 
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(-8.0f, 0.0f, 5.0f));
+        model = glm::translate(model, glm::vec3(-8.0f, 0.0f, 6.5f));
         model = glm::rotate(model, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         model = glm::rotate(model, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::rotate(model, glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f));
@@ -586,7 +586,7 @@ int main() {
         humanModel.Draw(ourShader);
 
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(-6.0f, 0.0f, 5.0f));
+        model = glm::translate(model, glm::vec3(-6.0f, 0.0f, 6.5f));
         model = glm::rotate(model, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         model = glm::rotate(model, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::rotate(model, glm::radians(135.0f), glm::vec3(0.0f, 0.0f, 1.0f));
@@ -595,7 +595,7 @@ int main() {
         humanModel.Draw(ourShader);
 
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(-6.0f, 0.0f, -5.0f));
+        model = glm::translate(model, glm::vec3(-6.0f, 0.0f, -6.5f));
         model = glm::rotate(model, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         model = glm::rotate(model, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::scale(model, glm::vec3(0.009f));
@@ -603,7 +603,7 @@ int main() {
         humanModel.Draw(ourShader);
 
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(-8.0f, 0.0f, -5.0f));
+        model = glm::translate(model, glm::vec3(-8.0f, 0.0f, -6.5f));
         model = glm::rotate(model, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         model = glm::rotate(model, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::rotate(model, glm::radians(-45.0f), glm::vec3(0.0f, 0.0f, 1.0f));
@@ -745,26 +745,26 @@ int main() {
         ourShader.setFloat("material.shininess", 256.0f);
 
         // world transformation
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
-        model = glm::rotate(model, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-        model = glm::scale(model, glm::vec3(25.0f));
-        ourShader.setMat4("model", model);
+        //model = glm::mat4(1.0f);
+        //model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+        //model = glm::rotate(model, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        //model = glm::scale(model, glm::vec3(25.0f));
+        //ourShader.setMat4("model", model);
 
         // bind diffuse map
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, floorDiffuseMap);
+        //glActiveTexture(GL_TEXTURE0);
+        //glBindTexture(GL_TEXTURE_2D, floorDiffuseMap);
 
         // bind specular map
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, floorSpecularMap);
+        //glActiveTexture(GL_TEXTURE1);
+        //glBindTexture(GL_TEXTURE_2D, floorSpecularMap);
 
         // render floor
-        glBindVertexArray(floorVAO);
-        glEnable(GL_CULL_FACE);     // floor won't be visible if looked from bellow
-        glCullFace(GL_BACK);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
-        glDisable(GL_CULL_FACE);
+        //glBindVertexArray(floorVAO);
+        //glEnable(GL_CULL_FACE);     // floor won't be visible if looked from bellow
+        //glCullFace(GL_BACK);
+        //glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+        //glDisable(GL_CULL_FACE);
 
 
         // skybox shader setup
@@ -872,11 +872,13 @@ int main() {
 
         // render parallax-mapped quad
         glm::mat4 model1 = glm::mat4(1.0f);
-        model = glm::rotate(model1, glm::radians((float)glfwGetTime() * -10.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0))); // rotate the quad to show parallax mapping from multiple directions
+        model1 = glm::translate(model1, glm::vec3(0.0f, 0.0f, 0.0f));
+        model1 = glm::rotate(model1, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        model1 = glm::scale(model1, glm::vec3(12.5f));
         shader.setMat4("model", model1);
         shader.setVec3("viewPos", camera.Position);
         shader.setInt("blinnPhong", blinnPhong);
-        shader.setFloat("material.shininess", 16.0f);
+        shader.setFloat("material.shininess", 1000.0f);
         shader.setFloat("heightScale", heightScale); // adjust with Q and E keys
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, pDiffuseMap);
@@ -884,7 +886,10 @@ int main() {
         glBindTexture(GL_TEXTURE_2D, pNormalMap);
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, pHeightMap);
+        glEnable(GL_CULL_FACE);     // floor won't be visible if looked from bellow
+        glCullFace(GL_BACK);
         renderQuad();
+        glDisable(GL_CULL_FACE);
 
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
@@ -913,6 +918,21 @@ void processInput(GLFWwindow *window) {
         camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
+
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+    {
+        if (heightScale > 0.0f)
+            heightScale -= 0.0005f;
+        else
+            heightScale = 0.0f;
+    }
+    else if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+    {
+        if (heightScale < 1.0f)
+            heightScale += 0.0005f;
+        else
+            heightScale = 1.0f;
+    }
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
