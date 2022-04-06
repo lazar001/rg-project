@@ -10,7 +10,7 @@ UFO posmatra selo sakriveno u planinskoj sumi
 6. Z&C - podesavanje exposure parametra za bloom
 7. F1 - otkljucava / zakljucava kursor
 
-#Dodatne implementirane oblasti
+# Dodatne implementirane oblasti
 1. Cubemape, grupa A
 2. Parallax mape, grupa B
 3. Bloom, grupa B - trenutno ne radi dobro
