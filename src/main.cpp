@@ -28,6 +28,8 @@ unsigned int loadTexture(char const * path);
 
 void renderQuad();
 
+void renderQuadForBloom();
+
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
@@ -35,6 +37,9 @@ bool cursorEnabled = false;
 bool blinnPhong = true;
 bool gateClosed = false;
 float heightScale = 0.0305f;
+bool bloom = true;
+bool bloomKeyPressed = false;
+float exposure = 1.0f;
 
 // camera
 Camera camera(glm::vec3(0.0f, 3.0f, 0.0f));
@@ -96,6 +101,10 @@ int main() {
     Shader skyboxShader("resources/shaders/skybox.vs", "resources/shaders/skybox.fs");
     Shader blendingShader("resources/shaders/blending.vs", "resources/shaders/blending.fs");
     Shader shader("resources/shaders/parallax_mapping.vs", "resources/shaders/parallax_mapping.fs");
+
+    Shader blurShader("resources/shaders/blur.vs", "resources/shaders/blur.fs");
+    Shader bloomFinalShader("resources/shaders/bloom_final.vs", "resources/shaders/bloom_final.fs");
+    Shader ufoShader("resources/shaders/bloomSpotLight.vs", "resources/shaders/bloomSpotLight.fs");
 
     // floor plain coordinates
     float floorVertices[] = {
@@ -220,6 +229,58 @@ int main() {
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
     glBindVertexArray(0);
 
+    // configure (floating point) framebuffers
+    // ---------------------------------------
+    unsigned int hdrFBO;
+    glGenFramebuffers(1, &hdrFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+    // create 2 floating point color buffers (1 for normal rendering, other for brightness threshold values)
+    unsigned int colorBuffers[2];
+    glGenTextures(2, colorBuffers);
+    for (unsigned int i = 0; i < 2; i++)
+    {
+        glBindTexture(GL_TEXTURE_2D, colorBuffers[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);  // we clamp to the edge as the blur filter would otherwise sample repeated texture values!
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        // attach texture to framebuffer
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, colorBuffers[i], 0);
+    }
+    // create and attach depth buffer (renderbuffer)
+    unsigned int rboDepth;
+    glGenRenderbuffers(1, &rboDepth);
+    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCR_WIDTH, SCR_HEIGHT);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+    // tell OpenGL which color attachments we'll use (of this framebuffer) for rendering
+    unsigned int attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    glDrawBuffers(2, attachments);
+    // finally check if framebuffer is complete
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "Framebuffer not complete!" << std::endl;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // ping-pong-framebuffer for blurring
+    unsigned int pingpongFBO[2];
+    unsigned int pingpongColorbuffers[2];
+    glGenFramebuffers(2, pingpongFBO);
+    glGenTextures(2, pingpongColorbuffers);
+    for (unsigned int i = 0; i < 2; i++)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[i]);
+        glBindTexture(GL_TEXTURE_2D, pingpongColorbuffers[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // we clamp to the edge as the blur filter would otherwise sample repeated texture values!
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pingpongColorbuffers[i], 0);
+        // also check if framebuffers are complete (no need for depth buffer)
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+            std::cout << "Framebuffer not complete!" << std::endl;
+    }
     // load textures
     // .............
 
@@ -234,6 +295,10 @@ int main() {
     ourShader.use();
     ourShader.setInt("material.diffuse", 0);
     ourShader.setInt("material.specular", 1);
+
+    ufoShader.use();
+    ufoShader.setInt("material.diffuse", 0);
+    ufoShader.setInt("material.specular", 1);
 
     shader.use();
     shader.setInt("material.diffuseMap", 0);
@@ -303,6 +368,14 @@ int main() {
     // --------------------
     blendingShader.use();
     blendingShader.setInt("texture1", 0);
+
+    // bloom shaders configuration
+    // ---------------------------
+    blurShader.use();
+    blurShader.setInt("image", 0);
+    bloomFinalShader.use();
+    bloomFinalShader.setInt("scene", 0);
+    bloomFinalShader.setInt("bloomBlur", 1);
 
     //before loading model
     stbi_set_flip_vertically_on_load(false);
@@ -461,6 +534,27 @@ int main() {
         glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        //render scene into floating point framebuffer
+        // -----------------------------------------------BLOOM
+        glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        ufoShader.use();
+        ufoShader.setVec3("viewPosition", camera.Position);
+        ufoShader.setFloat("material.shininess", 16.0f);
+
+        // spotlight
+        ufoShader.setVec3("spotLight.position", glm::vec3(10 * cos(glfwGetTime()/2), 7.0f, 10 * sin(glfwGetTime()/2)));
+        ufoShader.setVec3("spotLight.direction", glm::vec3(0.0f, -1.0f, 0.0f));
+        ufoShader.setVec3("spotLight.ambient", 0.0f, 0.0f, 0.0f);
+        ufoShader.setVec3("spotLight.diffuse", 1.0f, 1.0f, 1.0f);
+        ufoShader.setVec3("spotLight.specular", 1.0f, 1.0f, 1.0f);
+        ufoShader.setFloat("spotLight.constant", 1.0f);
+        ufoShader.setFloat("spotLight.linear", 0.09);
+        ufoShader.setFloat("spotLight.quadratic", 0.032);
+        ufoShader.setFloat("spotLight.cutOff", glm::cos(glm::radians(12.5f)));
+        ufoShader.setFloat("spotLight.outerCutOff", glm::cos(glm::radians(15.0f)));
+
         // don't forget to enable shader before setting uniforms
         ourShader.use();
         ourShader.setVec3("viewPos", camera.Position);
@@ -512,6 +606,8 @@ int main() {
         ourShader.setMat4("projection", projection);
         ourShader.setMat4("view", view);
 
+        ufoShader.setMat4("projection", projection);
+        ufoShader.setMat4("view", view);
         // render the loaded models
 
         // ufo model
@@ -519,8 +615,8 @@ int main() {
         model = glm::translate(model,
                                glm::vec3(10 * cos(glfwGetTime()/2), 7.0f, 10 * sin(glfwGetTime()/2))); // translate it down so it's at the center of the scene
         model = glm::scale(model, glm::vec3(0.05f));    // it's a bit too big for our scene, so scale it down
-        ourShader.setMat4("model", model);
-        ufoModel.Draw(ourShader);
+        ufoShader.setMat4("model", model);
+        ufoModel.Draw(ufoShader);
 
         // stall model
         for(unsigned int i = 0; i < stalls.size(); i++)
@@ -892,6 +988,36 @@ int main() {
         glDisable(GL_CULL_FACE);
 
 
+        // 2. blur bright fragments with two-pass Gaussian Blur
+        // --------------------------------------------------
+        bool horizontal = true, first_iteration = true;
+        unsigned int amount = 10;
+        blurShader.use();
+        for (unsigned int i = 0; i < amount; i++)
+        {
+            glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]);
+            blurShader.setInt("horizontal", horizontal);
+            glBindTexture(GL_TEXTURE_2D, first_iteration ? colorBuffers[1] : pingpongColorbuffers[!horizontal]);  // bind texture of other framebuffer (or scene if first iteration)
+            renderQuadForBloom();
+            horizontal = !horizontal;
+            if (first_iteration)
+                first_iteration = false;
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        // 3. now render floating point color buffer to 2D quad and tonemap HDR colors to default framebuffer's (clamped) color range
+        // --------------------------------------------------------------------------------------------------------------------------
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        bloomFinalShader.use();
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, colorBuffers[0]);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, pingpongColorbuffers[!horizontal]);
+        bloomFinalShader.setInt("bloom", bloom);
+        bloomFinalShader.setFloat("exposure", exposure);
+        renderQuadForBloom();
+
+
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
@@ -932,6 +1058,28 @@ void processInput(GLFWwindow *window) {
             heightScale += 0.0005f;
         else
             heightScale = 1.0f;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && !bloomKeyPressed)
+    {
+        bloom = !bloom;
+        bloomKeyPressed = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_RELEASE)
+    {
+        bloomKeyPressed = false;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS)
+    {
+        if (exposure > 0.0f)
+            exposure -= 0.001f;
+        else
+            exposure = 0.0f;
+    }
+    else if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
+    {
+        exposure += 0.001f;
     }
 }
 
@@ -1136,5 +1284,34 @@ void renderQuad()
     }
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+}
+
+unsigned int quadVAO1 = 0;
+unsigned int quadVBO1;
+void renderQuadForBloom()
+{
+    if (quadVAO1 == 0)
+    {
+        float quadVertices[] = {
+                // positions        // texture Coords
+                -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+                -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+                1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+                1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+        };
+        // setup plane VAO
+        glGenVertexArrays(1, &quadVAO1);
+        glGenBuffers(1, &quadVBO1);
+        glBindVertexArray(quadVAO1);
+        glBindBuffer(GL_ARRAY_BUFFER, quadVBO1);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    }
+    glBindVertexArray(quadVAO1);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindVertexArray(0);
 }
