@@ -1,11 +1,16 @@
-# project_base
-Prazan projekat sa pratećim bibliotekama koje koristimo na času. 
+# Village
+UFO posmatra selo sakriveno u planinskoj sumi
 
 # Uputstvo
-1. `git clone https://github.com/matf-racunarska-grafika/project_base.git`
-2. CLion -> Open -> path/to/my/project_base
-3. Main se nalazi u src/main.cpp
-4. Cpp fajlovi idu u src folder
-5. Zaglavlja (h i hpp) fajlovi idu u include
-6. Šejderi idu u folder shaders. `Vertex shader` ima ekstenziju `.vs`, `fragment shader` ima ekstenziju `.fs`
-7. ALT+SHIFT+F10 -> project_base -> run
+1. WASD - kretanje kamere, mis za rotaciju
+2. M - ukljuci / iskljuci blinn phong
+3. G - Otvara zatvara kapiju
+4. Q&E - podesavanje heightScale-a za parallax mapping
+5. SPACE - ukljuci / iskljuci bloom
+6. Z&C - podesavanje exposure parametra za bloom
+7. F1 - otkljucava / zakljucava kursor
+
+#Dodatne implementirane oblasti
+1. Cubemape, grupa A
+2. Parallax mape, grupa B
+3. Bloom, grupa B - trenutno ne radi dobro
