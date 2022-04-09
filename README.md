@@ -13,4 +13,7 @@ UFO posmatra selo sakriveno u planinskoj sumi
 # Dodatne implementirane oblasti
 1. Cubemape, grupa A
 2. Parallax mape, grupa B
-3. Bloom, grupa B - trenutno ne radi dobro
+3. Bloom, grupa B
+
+# Link do video snimka
+https://youtu.be/qiLF8EACWMA
